@@ -3,30 +3,30 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "array.h"
 #include "tokenization.h"
 
-void tokenize(Array *a, char buf[BUF_SIZE]) {
-  char c[BUF_SIZE];
+void tokenize(Tokenizer *t, Array *a) {
+  char buf[BUF_SIZE];
   int len = 0;
 
-  for (int i = 0; buf[i] != '\0'; i++) {
-    // if buffer == '[A-Za-z]'
-    if (isalpha(buf[i])) {
-      c[len++] = buf[i];
-      i++;
+  while (peek(t) != '\0') {
 
-      while (isalnum(buf[i])) {
-        c[len++] = buf[i];
-        i++;
+    // if buffer is a word / [A-Za-Z]
+    if (isalpha(peek(t))) {
+      buf[len++] = consume(t);
+      while (peek(t) != '\0' && isalnum(peek(t))) {
+        buf[len++] = consume(t);
       }
-      c[len] = '\0';
-      i--;
+      buf[len] = '\0';
 
-      if (strcmp(c, "exit") == 0) {
-        Token t = {.type = EXIT, .val = "exit"};
-        appendToken(a, &t);
+      if (strcmp(buf, "exit") == 0) {
+        Token tok = {.type = EXIT, .str = "exit"};
+        appendArray(a, &tok);
+
         len = 0;
-        c[0] = '\0';
+        buf[0] = '\0';
+
         continue;
       } else {
         printf("Unknown WORD");
@@ -34,33 +34,33 @@ void tokenize(Array *a, char buf[BUF_SIZE]) {
       }
     }
 
-    // if buffer == '[0-9]'
-    else if (isdigit(buf[i])) {
-      c[len++] = buf[i];
-      i++;
-
-      while (isdigit(buf[i])) {
-        c[len++] = buf[i];
-        i++;
+    // if buffer is a number
+    else if (isdigit(peek(t))) {
+      buf[len++] = consume(t);
+      while (peek(t) != '\0' && isdigit(peek(t))) {
+        buf[len++] = consume(t);
       }
-      c[len] = '\0';
-      i--;
+      buf[len] = '\0';
+      Token tok = {.type = INT_LIT, .str = strdup(buf)};
+      appendArray(a, &tok);
 
-      Token t = {.type = INT_LIT, .val = strdup(c)};
-      appendToken(a, &t);
       len = 0;
-      c[0] = '\0';
+      buf[0] = '\0';
+
       continue;
     }
 
-    else if (buf[i] == ';') {
-      Token t = {.type = SEMICOL, .val = ";"};
-      appendToken(a, &t);
+    // if buf is semicolon
+    else if (peek(t) == ';') {
+      consume(t);
+
+      Token tok = {.type = SEMICOL, .str = ";"};
+      appendArray(a, &tok);
       continue;
     }
 
-    // if buffer == ' '
-    else if (isspace(buf[i])) {
+    else if (isspace(peek(t))) {
+      consume(t);
       continue;
     }
 
@@ -69,6 +69,8 @@ void tokenize(Array *a, char buf[BUF_SIZE]) {
       exit(EXIT_FAILURE);
     }
   }
+
+  t->curr_index = 0;
 }
 
 char *tokens_to_asm(const Array *a) {
@@ -77,14 +79,17 @@ char *tokens_to_asm(const Array *a) {
   strcat(result, "global _start\n_start:\n");
 
   for (int i = 0; i < a->used; i++) {
-    Token t = a->tokens[i];
-    if (t.type == EXIT) {
-      if (i + 1 < a->used && a->tokens[i + 1].type == INT_LIT) {
-        if (i + 2 < a->used && a->tokens[i + 2].type == SEMICOL) {
+    Token *t = (Token *)getArray((Array *)a, i);
+    if (t->type == EXIT) {
+      Token *next = (Token *)getArray((Array *)a, i + 1);
+      Token *semi = (Token *)getArray((Array *)a, i + 2);
+
+      if (i + 1 < a->used && next->type == INT_LIT) {
+        if (i + 2 < a->used && semi->type == SEMICOL) {
           strcat(result, "		mov rax, 60\n");
 
           char tmp[BUF_SIZE];
-          sprintf(tmp, "		mov rdi, %s\n", a->tokens[i + 1].val);
+          sprintf(tmp, "		mov rdi, %s\n", next->str);
           strcat(result, tmp);
 
           strcat(result, "		syscall\n");
@@ -93,4 +98,10 @@ char *tokens_to_asm(const Array *a) {
     }
   }
   return result;
+}
+
+void freeToken(void *elem) {
+  Token *t = (Token *)elem;
+  if (t->type == INT_LIT)
+    free((char *)t->str);
 }

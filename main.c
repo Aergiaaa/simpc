@@ -16,14 +16,24 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  Array tokenlist;
-  initArray(&tokenlist, 32);
+  fseek(f, 0, SEEK_END);
+  size_t fsize = ftell(f);
+  rewind(f);
 
-  char buf[BUF_SIZE];
-  while (fgets(buf, BUF_SIZE, f) != NULL) {
-    tokenize(&tokenlist, buf);
-  }
+  char *src = malloc(fsize + 1);
+  fread(src, 1, fsize, f);
+  src[fsize] = '\0';
+  fclose(f);
+
+  Tokenizer tokenizer = initTokenizer(src);
+
+  Array tokenlist;
+  initArray(&tokenlist, 32, sizeof(Token));
+
+  tokenize(&tokenizer, &tokenlist);
+
   char *str = tokens_to_asm(&tokenlist);
+  freeArray(&tokenlist, freeToken);
 
   FILE *fres = fopen("res.asm", "w");
   if (fres == NULL) {
@@ -31,7 +41,9 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
   fprintf(fres, "%s", str);
+
   fclose(fres);
+  free(str);
 
   int ret = system("nasm -felf64 res.asm -o res.o");
   if (ret != 0) {
@@ -44,10 +56,6 @@ int main(int argc, char **argv) {
     printf("ld failed\n");
     return EXIT_FAILURE;
   }
-  // free all
-  freeArray(&tokenlist);
-  fclose(f);
-  free(str);
 
   return EXIT_SUCCESS;
 }
