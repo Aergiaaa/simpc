@@ -21,7 +21,6 @@ typedef struct Token {
 } Token;
 
 void freeToken(void *elem);
-char *tokens_to_asm(const Array *a);
 
 typedef struct Tokenizer {
   const char *str;
@@ -34,21 +33,20 @@ static inline Tokenizer initTokenizer(const char *str) {
   return (Tokenizer){.str = str, .len = strlen(str), .curr_index = 0};
 };
 
-void tokenize(Tokenizer *t, Array *a);
+void tokenize(Tokenizer *t, Array *tokenArray);
 
 // returning current value without removing it
-static inline char peek(Tokenizer *t) {
+static inline char peek_char(Tokenizer *t) {
   if (t->curr_index >= (int)t->len)
     return '\0';
 
   return t->str[t->curr_index];
 };
 
-static inline char peek_ahead(Tokenizer *t, int ahead) {
-  if (t->curr_index + ahead >= (int)t->len)
-    return '\0';
-  return t->str[t->curr_index + ahead];
-}
-
 // returning current value and removing it from string
-static inline char consume(Tokenizer *t) { return t->str[t->curr_index++]; }
+static inline char consume_char(Tokenizer *t) {
+  if (t->curr_index >= t->len)
+    return '\0';
+  ;
+  return t->str[t->curr_index++];
+}

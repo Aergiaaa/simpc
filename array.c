@@ -41,6 +41,7 @@ void freeArray(Array *a, FreeFn fn) {
   a->data = NULL;
   a->used = 0;
   a->size = 0;
+  a->elem_size = 0;
 }
 
 void *getArray(Array *a, size_t index) {
