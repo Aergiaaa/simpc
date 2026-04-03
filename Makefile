@@ -1,11 +1,13 @@
 CC = cc
 CFLAGS = -Wall -g
 
+.PHONY: build run clean
+
 build:
-	@$(CC) *.c  $(CFLAGS) -o simpc
+	@$(CC) *.c  $(CFLAGS) -o ./build/simpc
 
 run: build
-	@./simpc
+	@./build/simpc
 
 clean:
-	@rm simpc
+	@rm ./build/simpc
