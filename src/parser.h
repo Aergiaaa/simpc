@@ -10,7 +10,7 @@ typedef struct Parser {
   size_t curr_index;
 } Parser;
 
-NodeExit *parse(Parser *p);
+NodeProg *parse(Parser *p);
 
 static inline Parser initParser(Array *tokenArray) {
   return (Parser){
@@ -18,12 +18,13 @@ static inline Parser initParser(Array *tokenArray) {
 };
 
 // returning current value without removing it
-static inline Token *peek_token(Parser *p) {
-  if (p->curr_index >= (size_t)p->len)
+static inline Token *peek_token_offset(Parser *p, int offset) {
+  if (p->curr_index + offset >= (size_t)p->len)
     return NULL;
 
-  return (Token *)getArray((Array *)p->tokens, p->curr_index);
+  return (Token *)getArray((Array *)p->tokens, p->curr_index + offset);
 };
+static inline Token *peek_token(Parser *p) { return peek_token_offset(p, 0); };
 
 // returning current value and removing it from string
 static inline Token *consume_token(Parser *p) {

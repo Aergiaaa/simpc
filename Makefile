@@ -4,7 +4,7 @@ CFLAGS = -Wall -g
 .PHONY: build run clean
 
 build:
-	@$(CC) *.c  $(CFLAGS) -o ./build/simpc
+	@$(CC) ./src/*.c  $(CFLAGS) -o ./build/simpc
 
 run: build
 	@./build/simpc

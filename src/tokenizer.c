@@ -21,17 +21,15 @@ void tokenize(Tokenizer *t, Array *a) {
       buf[len] = '\0';
 
       if (strcmp(buf, "exit") == 0) {
-        Token tok = {.type = EXIT, .str = "exit"};
-        appendArray(a, &tok);
-
-        len = 0;
-        buf[0] = '\0';
-
-        continue;
+        appendArray(a, &(Token){.type = EXIT, .str = "exit"});
+      } else if (strcmp(buf, "let") == 0) {
+        appendArray(a, &(Token){.type = LET, .str = "let"});
       } else {
-        printf("Unknown WORD");
-        exit(EXIT_FAILURE);
+        appendArray(a, &(Token){.type = IDENT, .str = strdup(buf)});
       }
+      len = 0;
+      buf[0] = '\0';
+      continue;
     }
 
     // if buffer is a number
@@ -41,8 +39,7 @@ void tokenize(Tokenizer *t, Array *a) {
         buf[len++] = consume_char(t);
       }
       buf[len] = '\0';
-      Token tok = {.type = INT_LIT, .str = strdup(buf)};
-      appendArray(a, &tok);
+      appendArray(a, &(Token){.type = INT_LIT, .str = strdup(buf)});
 
       len = 0;
       buf[0] = '\0';
@@ -50,12 +47,26 @@ void tokenize(Tokenizer *t, Array *a) {
       continue;
     }
 
+    else if (peek_char(t) == '(') {
+      consume_char(t);
+      appendArray(a, &(Token){.type = LPAREN, .str = "("});
+      continue;
+    } else if (peek_char(t) == ')') {
+      consume_char(t);
+      appendArray(a, &(Token){.type = RPAREN, .str = ")"});
+      continue;
+    }
+
     // if buf is semicolon
     else if (peek_char(t) == ';') {
       consume_char(t);
+      appendArray(a, &(Token){.type = SEMICOL, .str = ";"});
+      continue;
+    }
 
-      Token tok = {.type = SEMICOL, .str = ";"};
-      appendArray(a, &tok);
+    else if (peek_char(t) == '=') {
+      consume_char(t);
+      appendArray(a, &(Token){.type = EQUAL, .str = "="});
       continue;
     }
 
@@ -65,7 +76,11 @@ void tokenize(Tokenizer *t, Array *a) {
     }
 
     else {
-      printf("Unknown WORD");
+      // appendArray(a, &(Token){.type = IDENT, .str = strdup(buf)});
+      // len = 0;
+      // buf[0] = '\0';
+      // consume_char(t);
+      printf("Unknown char: %c\n", peek_char(t));
       exit(EXIT_FAILURE);
     }
   }
@@ -75,6 +90,6 @@ void tokenize(Tokenizer *t, Array *a) {
 
 void freeToken(void *elem) {
   Token *t = (Token *)elem;
-  if (t->type == INT_LIT)
+  if (t->type == INT_LIT || t->type == IDENT)
     free((char *)t->str);
 }

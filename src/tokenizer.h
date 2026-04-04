@@ -12,7 +12,11 @@ typedef enum {
   RETURN,
   INT_LIT,
   SEMICOL,
-
+  LPAREN,
+  RPAREN,
+  LET,
+  IDENT,
+  EQUAL,
 } TokenType;
 
 typedef struct Token {
@@ -28,12 +32,16 @@ typedef struct Tokenizer {
   int curr_index;
 } Tokenizer;
 
+void tokenize(Tokenizer *t, Array *tokenArray);
+
 static inline Tokenizer initTokenizer(const char *str) {
   assert(str != NULL);
-  return (Tokenizer){.str = str, .len = strlen(str), .curr_index = 0};
+  return (Tokenizer){
+      .str = str,
+      .len = strlen(str),
+      .curr_index = 0,
+  };
 };
-
-void tokenize(Tokenizer *t, Array *tokenArray);
 
 // returning current value without removing it
 static inline char peek_char(Tokenizer *t) {

@@ -10,7 +10,7 @@ typedef struct Array {
   size_t elem_size;
 } Array;
 
-void initArray(Array *a, size_t initSize, size_t elem_size);
+Array initArray(size_t initSize, size_t elem_size);
 void appendArray(Array *a, void *elem);
 void *getArray(Array *a, size_t index);
 

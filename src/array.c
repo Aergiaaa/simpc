@@ -1,19 +1,23 @@
+#include "array.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "array.h"
+Array initArray(size_t initSize, size_t elem_size) {
+  Array a;
 
-void initArray(Array *a, size_t initSize, size_t elem_size) {
-  a->data = malloc(initSize * elem_size);
-  if (a->data == NULL) {
+  a.data = malloc(initSize * elem_size);
+  if (a.data == NULL) {
     printf("Memory allocation failed\n");
     exit(EXIT_FAILURE);
   }
 
-  a->used = 0;
-  a->size = initSize;
-  a->elem_size = elem_size;
+  a.used = 0;
+  a.size = initSize;
+  a.elem_size = elem_size;
+
+  return a;
 }
 
 void appendArray(Array *a, void *elem) {

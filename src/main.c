@@ -1,8 +1,10 @@
+#include "generation.h"
+#include "hashmap.h"
+#include "node.h"
+#include "parser.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "generation.h"
-#include "parser.h"
 
 int main(int argc, char **argv) {
   int exit_code = EXIT_SUCCESS;
@@ -28,17 +30,12 @@ int main(int argc, char **argv) {
   src[fsize] = '\0';
   fclose(f);
 
-  Array tokenlist;
-  initArray(&tokenlist, 32, sizeof(Token));
-
   Tokenizer tokenizer = initTokenizer(src);
-
+  Array tokenlist = initArray(32, sizeof(Token));
   tokenize(&tokenizer, &tokenlist);
 
   Parser parser = initParser(&tokenlist);
-
-  NodeExit *tree = parse(&parser);
-
+  NodeProg *tree = parse(&parser);
   if (tree == NULL) {
     printf("no exit statement found");
     exit(EXIT_FAILURE);
@@ -56,7 +53,9 @@ int main(int argc, char **argv) {
   fprintf(fres, "%s", str);
   fclose(fres);
 
-  int ret = system("nasm -felf64 res.asm -o res.o");
+  int ret = system("rm -f res res.o");
+
+  ret = system("nasm -felf64 res.asm -o res.o");
   if (ret != 0) {
     printf("nasm failed\n");
     return EXIT_FAILURE;
@@ -70,9 +69,8 @@ int main(int argc, char **argv) {
 
   // free-ing stuff
 freeup:
+  freeHashMap(&generator.vars);
   freeArray(&tokenlist, freeToken);
-  free(tree->expr);
-  free(tree);
   free(str);
   free(src);
 
