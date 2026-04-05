@@ -1,31 +1,128 @@
 #include <stdlib.h>
 
+#include "arena.h"
 #include "array.h"
 #include "node.h"
 #include "parser.h"
 #include "tokenizer.h"
 
-NodeExpr *parse_expr(Parser *p) {
-  NodeExpr *expr = malloc(sizeof(NodeExpr));
+NodeExpr *parse_expr(Parser *p);
 
+NodeExprBinOp *parse_expr_bin(Parser *p) {
+  NodeExpr *left = parse_expr(p);
+  if (left == NULL)
+    return NULL;
+
+  NodeExpr *right = parse_expr(p);
+  if (right == NULL) {
+    printf("expected expression");
+    exit(EXIT_FAILURE);
+  }
+
+  NodeExprBinOp *bin = alloc(p->allocator, sizeof(NodeExprBinOp));
+  if (peek_token(p)) {
+    switch (peek_token(p)->type) {
+    case ADD:;
+      {
+        BinExprAdd *add_expr = alloc(p->allocator, sizeof(BinExprAdd));
+        add_expr->left = left;
+        consume_token(p);
+        add_expr->right = right;
+        consume_token(p);
+
+        bin->type = BIN_ADD_EXPR;
+        bin->add = add_expr;
+        return bin;
+      }
+    case MUL:
+    default:
+      break;
+    }
+  }
+
+  printf("unsupported binary expression");
+  exit(EXIT_FAILURE);
+}
+
+NodeTerm *parse_term(Parser *p) {
   Token *t = peek_token(p);
-  if (t != NULL && t->type == INT_LIT) {
-    NodeExprIntLit *int_lit = malloc(sizeof(NodeExprIntLit));
-    int_lit->lit = consume_token(p);
+  if (t == NULL) {
+    return NULL;
+  }
 
-    expr->type = EXPR_INT_LIT;
-    expr->int_lit = int_lit;
+  switch (t->type) {
+  case INT_LIT:;
+    {
+      NodeTermIntLit *int_lit = alloc(p->allocator, sizeof(NodeTermIntLit));
+      int_lit->lit = consume_token(p);
 
+      NodeTerm *term = alloc(p->allocator, sizeof(NodeTerm));
+      term->type = TERM_INT_LIT;
+      term->int_lit = int_lit;
+      return term;
+    }
+  case IDENT:;
+    {
+      NodeTermIdent *ident = alloc(p->allocator, sizeof(NodeTermIdent));
+      ident->ident = consume_token(p);
+
+      NodeTerm *term = alloc(p->allocator, sizeof(NodeTerm));
+      term->type = TERM_IDENT;
+      term->ident = ident;
+      return term;
+    }
+  default:
+    return NULL;
+  }
+}
+
+NodeExpr *parse_expr(Parser *p) {
+  NodeTerm *term = parse_term(p);
+  if (term != NULL) {
+    NodeExpr *expr = alloc(p->allocator, sizeof(NodeExpr));
+
+    if (peek_token(p)) {
+      switch (peek_token(p)->type) {
+      case ADD:;
+        {
+          NodeExprBinOp *bin = alloc(p->allocator, sizeof(NodeExprBinOp));
+          BinExprAdd *add_expr = alloc(p->allocator, sizeof(BinExprAdd));
+
+          NodeExpr *left = alloc(p->allocator, sizeof(NodeExpr));
+          left->type = EXPR_TERM;
+          left->term = term;
+          add_expr->left = left;
+          consume_token(p);
+
+          NodeExpr *right = parse_expr(p);
+          if (right == NULL) {
+            printf("expected expression");
+            exit(EXIT_FAILURE);
+          }
+          add_expr->right = right;
+
+          bin->type = BIN_ADD_EXPR;
+          bin->add = add_expr;
+
+          expr->type = EXPR_BIN_OP;
+          expr->bin_op = bin;
+          return expr;
+        }
+      default:
+        break;
+      }
+    }
+
+    expr->type = EXPR_TERM;
+    expr->term = term;
     return expr;
   }
 
-  else if (t != NULL && t->type == IDENT) {
-    NodeExprIdent *ident = malloc(sizeof(NodeExprIdent));
-    ident->ident = consume_token(p);
-
-    expr->type = EXPR_IDENT;
-    expr->ident = ident;
-
+  NodeExprBinOp *bin = parse_expr_bin(p);
+  if (bin != NULL) {
+    NodeExpr *expr = alloc(p->allocator, sizeof(NodeExpr));
+    expr->type = EXPR_BIN_OP;
+    expr->bin_op = bin;
     return expr;
   }
 
@@ -33,7 +130,7 @@ NodeExpr *parse_expr(Parser *p) {
 };
 
 NodeStmt *parse_stmt(Parser *p) {
-  NodeStmt *stmt = malloc(sizeof(NodeStmt));
+  NodeStmt *stmt = alloc(p->allocator, sizeof(NodeStmt));
 
   while (peek_token(p) != NULL) {
     if (peek_token(p)->type == EXIT && peek_token_offset(p, 1) != NULL &&
@@ -41,7 +138,7 @@ NodeStmt *parse_stmt(Parser *p) {
       consume_token(p); // consume the "exit"
       consume_token(p); // consume the "("
 
-      NodeStmtExit *exit_stmt = malloc(sizeof(NodeStmtExit));
+      NodeStmtExit *exit_stmt = alloc(p->allocator, sizeof(NodeStmtExit));
 
       NodeExpr *expr = parse_expr(p);
       if (expr != NULL) {
@@ -51,21 +148,8 @@ NodeStmt *parse_stmt(Parser *p) {
         exit(EXIT_FAILURE);
       }
 
-      Token *rparen = peek_token(p);
-      if (rparen != NULL && rparen->type == RPAREN) {
-        consume_token(p);
-      } else {
-        printf("expecting close parenthesis\n");
-        exit(EXIT_FAILURE);
-      }
-
-      Token *semicol = peek_token(p);
-      if (semicol != NULL && semicol->type == SEMICOL) {
-        consume_token(p);
-      } else {
-        printf("expecting ';'\n");
-        exit(EXIT_FAILURE);
-      }
+      try_consume_token_with_err(p, RPAREN, "expecting ')'");
+      try_consume_token_with_err(p, SEMICOL, "expecting ';'");
 
       stmt->type = STMT_EXIT;
       stmt->exit = exit_stmt;
@@ -79,7 +163,7 @@ NodeStmt *parse_stmt(Parser *p) {
 
       consume_token(p); // consume 'let'
 
-      NodeStmtLet *let = malloc(sizeof(NodeStmtLet));
+      NodeStmtLet *let = alloc(p->allocator, sizeof(NodeStmtLet));
       let->ident = consume_token(p); // consume 'ident'
 
       consume_token(p); // consume '='
@@ -92,12 +176,7 @@ NodeStmt *parse_stmt(Parser *p) {
         exit(EXIT_FAILURE);
       }
 
-      if (peek_token(p) != NULL && peek_token(p)->type == SEMICOL) {
-        consume_token(p);
-      } else {
-        printf("expected ';'");
-        exit(EXIT_FAILURE);
-      }
+      try_consume_token_with_err(p, SEMICOL, "expected ';'");
 
       stmt->type = STMT_LET;
       stmt->let = let;
@@ -111,7 +190,7 @@ NodeStmt *parse_stmt(Parser *p) {
 }
 
 NodeProg *parse(Parser *p) {
-  NodeProg *prog = malloc(sizeof(NodeProg));
+  NodeProg *prog = alloc(p->allocator, sizeof(NodeProg));
   prog->stmt = initArray(8, sizeof(NodeStmt));
 
   while (peek_token(p) != NULL) {

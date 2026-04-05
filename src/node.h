@@ -1,27 +1,64 @@
 #pragma once
 
+#include "array.h"
 #include "tokenizer.h"
 
-typedef struct NodeExprIntLit {
+typedef struct NodeTermIntLit {
   Token *lit;
-} NodeExprIntLit;
+} NodeTermIntLit;
 
-typedef struct NodeExprIdent {
+typedef struct NodeTermIdent {
   Token *ident;
-} NodeExprIdent;
+} NodeTermIdent;
+
+typedef enum NodeTermType {
+  TERM_INT_LIT,
+  TERM_IDENT,
+} NodeTermType;
+
+typedef struct NodeTerm {
+  NodeTermType type;
+  union {
+    NodeTermIntLit *int_lit;
+    NodeTermIdent *ident;
+  };
+} NodeTerm;
 
 typedef enum NodeExprType {
-  EXPR_INT_LIT,
-  EXPR_IDENT,
+  EXPR_TERM,
+  EXPR_BIN_OP,
 } NodeExprType;
 
 typedef struct NodeExpr {
   NodeExprType type;
   union {
-    NodeExprIdent *ident;
-    NodeExprIntLit *int_lit;
+    NodeTerm *term;
+    struct NodeExprBinOp *bin_op;
   };
 } NodeExpr;
+
+typedef struct BinExprAdd {
+  NodeExpr *left;
+  NodeExpr *right;
+} BinExprAdd;
+
+typedef struct BinExprMul {
+  NodeExpr *left;
+  NodeExpr *right;
+} BinExprMul;
+
+typedef enum BinExprType {
+  BIN_ADD_EXPR,
+  BIN_MUL_EXPR,
+} BinExprType;
+
+typedef struct NodeExprBinOp {
+  BinExprType type;
+  union {
+    BinExprAdd *add;
+    BinExprMul *mul;
+  };
+} NodeExprBinOp;
 
 typedef struct NodeStmtExit {
   NodeExpr *expr;
@@ -48,16 +85,3 @@ typedef struct NodeStmt {
 typedef struct NodeProg {
   Array stmt;
 } NodeProg;
-
-static inline void freeNodeExpr(NodeExpr *expr) {
-  if (expr->type == EXPR_INT_LIT)
-    free(expr->int_lit);
-  else if (expr->type == EXPR_IDENT)
-    free(expr->ident);
-  free(expr);
-}
-
-static inline void freeNodeStmtExit(NodeStmtExit *node) {
-  freeNodeExpr(node->expr);
-  free(node);
-}

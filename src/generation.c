@@ -2,7 +2,9 @@
 #include "array.h"
 #include "hashmap.h"
 #include "node.h"
+#include "tokenizer.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -22,19 +24,19 @@ void pop(Generator *g, char *reg) {
   g->stack_size--;
 }
 
-void gen_expr(Generator *g, NodeExpr *expr) {
+void gen_term(Generator *g, NodeTerm *term) {
   char buf[BUF_SIZE];
-  switch (expr->type) {
-  case EXPR_INT_LIT:
-    sprintf(buf, "\tmov rax, %s\n", expr->int_lit->lit->str);
+  switch (term->type) {
+  case TERM_INT_LIT:
+    sprintf(buf, "\tmov rax, %s\n", term->int_lit->lit->str);
     strcat(g->result, buf);
     push(g, "rax");
     break;
-  case EXPR_IDENT:;
+  case TERM_IDENT:;
     {
-      HashEntry *entry = hashmap_get(&g->vars, expr->ident->ident->str);
+      HashEntry *entry = hashmap_get(&g->vars, term->ident->ident->str);
       if (entry == NULL) {
-        printf("undefined variable: %s\n", expr->ident->ident->str);
+        printf("undefined variable: %s\n", term->ident->ident->str);
         exit(EXIT_FAILURE);
       }
 
@@ -43,6 +45,36 @@ void gen_expr(Generator *g, NodeExpr *expr) {
       push(g, buf);
       break;
     }
+  }
+}
+
+void gen_expr(Generator *g, NodeExpr *expr);
+
+void gen_bin_op(Generator *g, NodeExprBinOp *bin) {
+  switch (bin->type) {
+  case BIN_ADD_EXPR:
+    gen_expr(g, bin->add->left);
+    gen_expr(g, bin->add->right);
+
+    pop(g, "rax");
+    pop(g, "rbx");
+    strcat(g->result, "\tadd rax,rbx\n");
+    push(g, "rax");
+    break;
+  case BIN_MUL_EXPR:
+  default:
+    break;
+  }
+}
+
+void gen_expr(Generator *g, NodeExpr *expr) {
+  switch (expr->type) {
+  case EXPR_TERM:
+    gen_term(g, expr->term);
+    break;
+  case EXPR_BIN_OP:
+    gen_bin_op(g, expr->bin_op);
+    break;
   }
 }
 

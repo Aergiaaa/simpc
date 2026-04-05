@@ -8,15 +8,27 @@
 #define BUF_SIZE 1024
 
 typedef enum {
+  // builtin
   EXIT,
   RETURN,
+
+  // datatype
   INT_LIT,
+
   SEMICOL,
   LPAREN,
   RPAREN,
+
+  // variable allocation
   LET,
   IDENT,
   EQUAL,
+
+  // binary expr
+  MUL,
+  DIV,
+  ADD,
+  SUB,
 } TokenType;
 
 typedef struct Token {

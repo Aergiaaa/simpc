@@ -1,3 +1,5 @@
+#include "arena.h"
+#include "array.h"
 #include "generation.h"
 #include "hashmap.h"
 #include "node.h"
@@ -69,8 +71,10 @@ int main(int argc, char **argv) {
 
   // free-ing stuff
 freeup:
-  freeHashMap(&generator.vars);
   freeArray(&tokenlist, freeToken);
+  freeArray(&tree->stmt, NULL);
+  freeArena(parser.allocator);
+  freeHashMap(&generator.vars);
   free(str);
   free(src);
 

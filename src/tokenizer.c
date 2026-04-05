@@ -57,16 +57,28 @@ void tokenize(Tokenizer *t, Array *a) {
       continue;
     }
 
+    else if (peek_char(t) == '=') {
+      consume_char(t);
+      appendArray(a, &(Token){.type = EQUAL, .str = "="});
+      continue;
+    }
+
+    else if (peek_char(t) == '+') {
+      consume_char(t);
+      appendArray(a, &(Token){.type = ADD, .str = "+"});
+      continue;
+    }
+
+    else if (peek_char(t) == '*') {
+      consume_char(t);
+      appendArray(a, &(Token){.type = MUL, .str = "*"});
+      continue;
+    }
+
     // if buf is semicolon
     else if (peek_char(t) == ';') {
       consume_char(t);
       appendArray(a, &(Token){.type = SEMICOL, .str = ";"});
-      continue;
-    }
-
-    else if (peek_char(t) == '=') {
-      consume_char(t);
-      appendArray(a, &(Token){.type = EQUAL, .str = "="});
       continue;
     }
 
