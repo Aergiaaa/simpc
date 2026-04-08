@@ -1,19 +1,18 @@
-#include "arena.h"
-#include "array.h"
-#include "generation.h"
-#include "hashmap.h"
-#include "node.h"
-#include "parser.h"
-
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "generation.h"
+#include "parser.h"
+#include "run.h"
+#include "tokenizer.h"
 
 int main(int argc, char **argv) {
   int exit_code = EXIT_SUCCESS;
 
   if (argc != 2) {
     printf("Incorrect usage, Correct usage is...\n");
-    printf("simp <file.sm>\n");
+    printf("simpc <file.sm>\n");
     return EXIT_FAILURE;
   }
 
@@ -55,15 +54,17 @@ int main(int argc, char **argv) {
   fprintf(fres, "%s", str);
   fclose(fres);
 
-  int ret = system("rm -f res res.o");
+  int ret = run("/usr/bin/rm", (char *[5]){"rm", "-f", "res", "res.o", NULL});
 
-  ret = system("nasm -felf64 res.asm -o res.o");
+  ret = run("/usr/bin/nasm",
+            (char *[6]){"nasm", "-felf64", "res.asm", "-o", "res.o", NULL});
   if (ret != 0) {
     printf("nasm failed\n");
     return EXIT_FAILURE;
   }
 
-  ret = system("ld res.o -o res");
+  ret = run("/usr/bin/ld",
+            (char *[6]){"ld", "res.o", "-o", "res", "--strip-all", NULL});
   if (ret != 0) {
     printf("ld failed\n");
     return EXIT_FAILURE;
@@ -75,7 +76,7 @@ freeup:
   freeArray(&tree->stmt, NULL);
   freeArena(parser.allocator);
   freeHashMap(&generator.vars);
-  free(str);
+  free(generator.result);
   free(src);
 
   return exit_code;

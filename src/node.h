@@ -11,9 +11,14 @@ typedef struct NodeTermIdent {
   Token *ident;
 } NodeTermIdent;
 
+typedef struct NodeTermParen {
+  struct NodeExpr *expr;
+} NodeTermParen;
+
 typedef enum NodeTermType {
   TERM_INT_LIT,
   TERM_IDENT,
+  TERM_PAREN,
 } NodeTermType;
 
 typedef struct NodeTerm {
@@ -21,6 +26,7 @@ typedef struct NodeTerm {
   union {
     NodeTermIntLit *int_lit;
     NodeTermIdent *ident;
+    NodeTermParen *paren;
   };
 } NodeTerm;
 
@@ -42,21 +48,35 @@ typedef struct BinExprAdd {
   NodeExpr *right;
 } BinExprAdd;
 
+typedef struct BinExprSub {
+  NodeExpr *left;
+  NodeExpr *right;
+} BinExprSub;
+
 typedef struct BinExprMul {
   NodeExpr *left;
   NodeExpr *right;
 } BinExprMul;
 
+typedef struct BinExprDiv {
+  NodeExpr *left;
+  NodeExpr *right;
+} BinExprDiv;
+
 typedef enum BinExprType {
   BIN_ADD_EXPR,
+  BIN_SUB_EXPR,
   BIN_MUL_EXPR,
+  BIN_DIV_EXPR
 } BinExprType;
 
 typedef struct NodeExprBinOp {
   BinExprType type;
   union {
     BinExprAdd *add;
+    BinExprSub *sub;
     BinExprMul *mul;
+    BinExprDiv *div;
   };
 } NodeExprBinOp;
 

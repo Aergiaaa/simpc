@@ -3,7 +3,6 @@
 #include "arena.h"
 #include "array.h"
 #include "node.h"
-#include "tokenizer.h"
 
 typedef struct Parser {
   const Array *tokens;

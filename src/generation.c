@@ -1,14 +1,17 @@
-#include "generation.h"
 #include "array.h"
 #include "hashmap.h"
-#include "node.h"
-#include "tokenizer.h"
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "generation.h"
+#include "node.h"
+#include "tokenizer.h"
+
 #define QWORD 8
+
+void gen_expr(Generator *g, NodeExpr *expr);
 
 void push(Generator *g, char *reg) {
   char tmp[BUF_SIZE];
@@ -45,10 +48,10 @@ void gen_term(Generator *g, NodeTerm *term) {
       push(g, buf);
       break;
     }
+  case TERM_PAREN:;
+    gen_expr(g, term->paren->expr);
   }
 }
-
-void gen_expr(Generator *g, NodeExpr *expr);
 
 void gen_bin_op(Generator *g, NodeExprBinOp *bin) {
   switch (bin->type) {
@@ -56,12 +59,44 @@ void gen_bin_op(Generator *g, NodeExprBinOp *bin) {
     gen_expr(g, bin->add->left);
     gen_expr(g, bin->add->right);
 
-    pop(g, "rax");
     pop(g, "rbx");
+    pop(g, "rax");
     strcat(g->result, "\tadd rax,rbx\n");
     push(g, "rax");
     break;
+
+  case BIN_SUB_EXPR:
+    gen_expr(g, bin->sub->left);
+    gen_expr(g, bin->sub->right);
+
+    pop(g, "rbx");
+    pop(g, "rax");
+    strcat(g->result, "\tsub rax,rbx\n");
+    push(g, "rax");
+    break;
+
   case BIN_MUL_EXPR:
+    // implement multipication
+    gen_expr(g, bin->mul->left);
+    gen_expr(g, bin->mul->right);
+
+    pop(g, "rbx");
+    pop(g, "rax");
+    strcat(g->result, "\timul rax,rbx\n");
+    push(g, "rax");
+    break;
+
+  case BIN_DIV_EXPR:
+    gen_expr(g, bin->div->left);
+    gen_expr(g, bin->div->right);
+
+    pop(g, "rbx");
+    pop(g, "rax");
+    strcat(g->result, "\txor rdx,rdx\n");
+    strcat(g->result, "\tdiv rbx\n");
+    push(g, "rax");
+    break;
+
   default:
     break;
   }

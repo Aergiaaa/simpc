@@ -8,6 +8,13 @@
 #define BUF_SIZE 1024
 
 typedef enum {
+  // binary expr
+  // already in precedence
+  ADD = 1,
+  SUB,
+  MUL,
+  DIV,
+
   // builtin
   EXIT,
   RETURN,
@@ -24,16 +31,15 @@ typedef enum {
   IDENT,
   EQUAL,
 
-  // binary expr
-  MUL,
-  DIV,
-  ADD,
-  SUB,
 } TokenType;
+
+bool is_bin_op(TokenType type);
+int bin_prec(TokenType type);
 
 typedef struct Token {
   TokenType type;
   const char *str;
+  bool need_free;
 } Token;
 
 void freeToken(void *elem);
