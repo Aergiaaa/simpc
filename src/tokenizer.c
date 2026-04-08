@@ -32,14 +32,59 @@ int bin_prec(TokenType type) {
   }
 }
 
+void token_singular_char(Tokenizer *t, Array *a, char c) {
+  if (isspace(c)) {
+    consume_char(t);
+    return;
+  }
+
+  switch (c) {
+  case '(':
+    consume_char(t);
+    appendArray(a, &(Token){.type = LPAREN, .str = "(", .need_free = false});
+    break;
+  case ')':
+    consume_char(t);
+    appendArray(a, &(Token){.type = RPAREN, .str = ")", .need_free = false});
+    break;
+  case '=':
+    consume_char(t);
+    appendArray(a, &(Token){.type = EQUAL, .str = "=", .need_free = false});
+    break;
+  case '+':
+    consume_char(t);
+    appendArray(a, &(Token){.type = ADD, .str = "+", .need_free = false});
+    break;
+  case '-':
+    consume_char(t);
+    appendArray(a, &(Token){.type = SUB, .str = "-", .need_free = false});
+    break;
+  case '*':
+    consume_char(t);
+    appendArray(a, &(Token){.type = MUL, .str = "*", .need_free = false});
+    break;
+  case '/':
+    consume_char(t);
+    appendArray(a, &(Token){.type = DIV, .str = "/", .need_free = false});
+    break;
+  case ';':
+    consume_char(t);
+    appendArray(a, &(Token){.type = SEMICOL, .str = ";", .need_free = false});
+    break;
+  default:
+    printf("Unknown char: %c\n", peek_char(t));
+    exit(EXIT_FAILURE);
+  }
+}
+
 void tokenize(Tokenizer *t, Array *a) {
   char buf[BUF_SIZE];
   int len = 0;
 
   while (peek_char(t) != '\0') {
+    char c = peek_char(t);
 
-    // if buffer is a word / [A-Za-Z]
-    if (isalpha(peek_char(t))) {
+    if (isalpha(c)) {
       buf[len++] = consume_char(t);
       while (peek_char(t) != '\0' && isalnum(peek_char(t))) {
         buf[len++] = consume_char(t);
@@ -55,13 +100,14 @@ void tokenize(Tokenizer *t, Array *a) {
         appendArray(
             a, &(Token){.type = IDENT, .str = strdup(buf), .need_free = true});
       }
+
       len = 0;
       buf[0] = '\0';
       continue;
     }
 
     // if buffer is a number
-    else if (isdigit(peek_char(t))) {
+    else if (isdigit(c)) {
       buf[len++] = consume_char(t);
       while (peek_char(t) != '\0' && isdigit(peek_char(t))) {
         buf[len++] = consume_char(t);
@@ -72,66 +118,10 @@ void tokenize(Tokenizer *t, Array *a) {
 
       len = 0;
       buf[0] = '\0';
-
       continue;
     }
 
-    else if (peek_char(t) == '(') {
-      consume_char(t);
-      appendArray(a, &(Token){.type = LPAREN, .str = "(", .need_free = false});
-      continue;
-    } else if (peek_char(t) == ')') {
-      consume_char(t);
-      appendArray(a, &(Token){.type = RPAREN, .str = ")", .need_free = false});
-      continue;
-    }
-
-    else if (peek_char(t) == '=') {
-      consume_char(t);
-      appendArray(a, &(Token){.type = EQUAL, .str = "=", .need_free = false});
-      continue;
-    }
-
-    else if (peek_char(t) == '+') {
-      consume_char(t);
-      appendArray(a, &(Token){.type = ADD, .str = "+", .need_free = false});
-      continue;
-    }
-
-    else if (peek_char(t) == '-') {
-      consume_char(t);
-      appendArray(a, &(Token){.type = SUB, .str = "-", .need_free = false});
-      continue;
-    }
-
-    else if (peek_char(t) == '*') {
-      consume_char(t);
-      appendArray(a, &(Token){.type = MUL, .str = "*", .need_free = false});
-      continue;
-    }
-
-    else if (peek_char(t) == '/') {
-      consume_char(t);
-      appendArray(a, &(Token){.type = DIV, .str = "/", .need_free = false});
-      continue;
-    }
-
-    // if buf is semicolon
-    else if (peek_char(t) == ';') {
-      consume_char(t);
-      appendArray(a, &(Token){.type = SEMICOL, .str = ";", .need_free = false});
-      continue;
-    }
-
-    else if (isspace(peek_char(t))) {
-      consume_char(t);
-      continue;
-    }
-
-    else {
-      printf("Unknown char: %c\n", peek_char(t));
-      exit(EXIT_FAILURE);
-    }
+    token_singular_char(t, a, c);
   }
 
   t->curr_index = 0;
