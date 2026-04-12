@@ -1,12 +1,8 @@
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "generation.h"
 #include "parser.h"
 #include "run.h"
-#include "scope.h"
-#include "tokenizer.h"
 
 int main(int argc, char **argv) {
   int exit_code = EXIT_SUCCESS;

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "arena.h"
-#include "array.h"
 #include "node.h"
 
 typedef struct Parser {
