@@ -9,27 +9,83 @@
 
 #define QWORD 8
 
-char *create_label(Generator *g) {
-  static char buf[BUF_SIZE];
-  sprintf(buf, "loc%d", g->label_count++);
-  return buf;
-};
-
+char *create_label(Generator *g);
 void gen_expr(Generator *g, NodeExpr *expr);
 void gen_stmt(Generator *g, NodeStmt *stmt);
+void gen_scope(Generator *g, NodeScope *scope);
+void gen_term(Generator *g, NodeTerm *term);
+void gen_bin_op(Generator *g, NodeExprBinOp *bin);
+void push(Generator *g, char *reg);
+void pop(Generator *g, char *reg);
 
-void push(Generator *g, char *reg) {
-  char tmp[BUF_SIZE];
-  sprintf(tmp, "\tpush %s\n", reg);
-  strcat(g->result, tmp);
-  g->stack_size++;
+char *generate(Generator *g) {
+  g->result[0] = '\0';
+  strcat(g->result, "global _start\n_start:\n");
+
+  for (int i = 0; i < g->root->stmt.used; i++) {
+    NodeStmt *stmt = (NodeStmt *)getArray(&g->root->stmt, i);
+    gen_stmt(g, stmt);
+  }
+
+  // edge case if there is no exit
+  strcat(g->result, "\tmov rax, 60\n");
+  strcat(g->result, "\tmov rdi, 0\n");
+  strcat(g->result, "\tsyscall\n");
+
+  return g->result;
+};
+
+void gen_expr(Generator *g, NodeExpr *expr) {
+  switch (expr->type) {
+  case EXPR_TERM:
+    gen_term(g, expr->term);
+    break;
+  case EXPR_BIN_OP:
+    gen_bin_op(g, expr->bin_op);
+    break;
+  }
 }
 
-void pop(Generator *g, char *reg) {
-  char tmp[BUF_SIZE];
-  sprintf(tmp, "\tpop %s\n", reg);
-  strcat(g->result, tmp);
-  g->stack_size--;
+void gen_stmt(Generator *g, NodeStmt *stmt) {
+  switch (stmt->type) {
+  case STMT_IF:
+    gen_expr(g, stmt->if_stmt->expr);
+    pop(g, "rax");
+
+    char *label = create_label(g);
+
+    strcat(g->result, "\ttest rax,rax\n");
+
+    char buf[BUF_SIZE];
+    sprintf(buf, "\tjz %s\n", label);
+    strcat(g->result, buf);
+
+    gen_scope(g, stmt->if_stmt->scope);
+
+    sprintf(buf, "%s:\n", label);
+    strcat(g->result, buf);
+
+    break;
+  case STMT_EXIT:
+    gen_expr(g, stmt->exit->expr);
+    strcat(g->result, "\tmov rax, 60\n"); // syscall exit
+    pop(g, "rdi");                        // load the statement for exit code
+    strcat(g->result, "\tsyscall\n");
+    break;
+  case STMT_LET:
+    if (scope_get(&g->scope, stmt->let->ident->str) != NULL) {
+      printf("identifier already used: %s", stmt->let->ident->str);
+      exit(EXIT_FAILURE);
+    }
+
+    gen_expr(g, stmt->let->expr);
+    scope_insert(&g->scope, stmt->let->ident->str, g->stack_size - 1);
+
+    break;
+  case STMT_SCOPE:
+    gen_scope(g, stmt->scope);
+    break;
+  }
 }
 
 void gen_scope(Generator *g, NodeScope *scope) {
@@ -124,72 +180,22 @@ void gen_bin_op(Generator *g, NodeExprBinOp *bin) {
   }
 }
 
-void gen_expr(Generator *g, NodeExpr *expr) {
-  switch (expr->type) {
-  case EXPR_TERM:
-    gen_term(g, expr->term);
-    break;
-  case EXPR_BIN_OP:
-    gen_bin_op(g, expr->bin_op);
-    break;
-  }
+void push(Generator *g, char *reg) {
+  char tmp[BUF_SIZE];
+  sprintf(tmp, "\tpush %s\n", reg);
+  strcat(g->result, tmp);
+  g->stack_size++;
 }
 
-void gen_stmt(Generator *g, NodeStmt *stmt) {
-  switch (stmt->type) {
-  case STMT_IF:
-    gen_expr(g, stmt->if_stmt->expr);
-    pop(g, "rax");
-
-    char *label = create_label(g);
-
-    strcat(g->result, "\ttest rax,rax\n");
-
-    char buf[BUF_SIZE];
-    sprintf(buf, "\tjz %s\n", label);
-    strcat(g->result, buf);
-
-    gen_scope(g, stmt->if_stmt->scope);
-
-    sprintf(buf, "%s:\n", label);
-    strcat(g->result, buf);
-
-    break;
-  case STMT_EXIT:
-    gen_expr(g, stmt->exit->expr);
-    strcat(g->result, "\tmov rax, 60\n"); // syscall exit
-    pop(g, "rdi");                        // load the statement for exit code
-    strcat(g->result, "\tsyscall\n");
-    break;
-  case STMT_LET:
-    if (scope_get(&g->scope, stmt->let->ident->str) != NULL) {
-      printf("identifier already used: %s", stmt->let->ident->str);
-      exit(EXIT_FAILURE);
-    }
-
-    gen_expr(g, stmt->let->expr);
-    scope_insert(&g->scope, stmt->let->ident->str, g->stack_size - 1);
-
-    break;
-  case STMT_SCOPE:
-    gen_scope(g, stmt->scope);
-    break;
-  }
+void pop(Generator *g, char *reg) {
+  char tmp[BUF_SIZE];
+  sprintf(tmp, "\tpop %s\n", reg);
+  strcat(g->result, tmp);
+  g->stack_size--;
 }
 
-char *generate(Generator *g) {
-  g->result[0] = '\0';
-  strcat(g->result, "global _start\n_start:\n");
-
-  for (int i = 0; i < g->root->stmt.used; i++) {
-    NodeStmt *stmt = (NodeStmt *)getArray(&g->root->stmt, i);
-    gen_stmt(g, stmt);
-  }
-
-  // edge case if there is no exit
-  strcat(g->result, "\tmov rax, 60\n");
-  strcat(g->result, "\tmov rdi, 0\n");
-  strcat(g->result, "\tsyscall\n");
-
-  return g->result;
+char *create_label(Generator *g) {
+  static char buf[BUF_SIZE];
+  sprintf(buf, "loc%d", g->label_count++);
+  return buf;
 };

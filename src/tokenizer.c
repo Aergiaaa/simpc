@@ -8,6 +8,8 @@
 #include "hashmap.h"
 #include "tokenizer.h"
 
+void token_singular_char(Tokenizer *t, Array *a, char c);
+
 static HashMap builtin_map;
 static bool builtin_map_init = false;
 static void init_builtin_map() {
@@ -17,83 +19,6 @@ static void init_builtin_map() {
   hashmap_insert(&builtin_map, "if", IF);
   hashmap_insert(&builtin_map, "else", ELSE);
   hashmap_insert(&builtin_map, "return", RETURN);
-}
-bool is_bin_op(TokenType type) {
-  switch (type) {
-  case ADD:
-  case SUB:
-  case MUL:
-  case DIV:
-    return true;
-  default:
-    return false;
-  }
-}
-
-int bin_prec(TokenType type) {
-  switch (type) {
-  case ADD:
-  case SUB:
-    return 1;
-  case MUL:
-  case DIV:
-    return 2;
-  default:
-    return 0;
-  }
-}
-
-void token_singular_char(Tokenizer *t, Array *a, char c) {
-  if (isspace(c)) {
-    consume_char(t);
-    return;
-  }
-
-  switch (c) {
-  case '(':
-    consume_char(t);
-    appendArray(a, &(Token){.type = LPAREN, .str = "(", .need_free = false});
-    break;
-  case ')':
-    consume_char(t);
-    appendArray(a, &(Token){.type = RPAREN, .str = ")", .need_free = false});
-    break;
-  case '{':
-    consume_char(t);
-    appendArray(a, &(Token){.type = LBRACE, .str = "{", .need_free = false});
-    break;
-  case '}':
-    consume_char(t);
-    appendArray(a, &(Token){.type = RBRACE, .str = "}", .need_free = false});
-    break;
-  case '=':
-    consume_char(t);
-    appendArray(a, &(Token){.type = EQUAL, .str = "=", .need_free = false});
-    break;
-  case '+':
-    consume_char(t);
-    appendArray(a, &(Token){.type = ADD, .str = "+", .need_free = false});
-    break;
-  case '-':
-    consume_char(t);
-    appendArray(a, &(Token){.type = SUB, .str = "-", .need_free = false});
-    break;
-  case '*':
-    consume_char(t);
-    appendArray(a, &(Token){.type = MUL, .str = "*", .need_free = false});
-    break;
-  case '/':
-    consume_char(t);
-    appendArray(a, &(Token){.type = DIV, .str = "/", .need_free = false});
-    break;
-  case ';':
-    consume_char(t);
-    appendArray(a, &(Token){.type = SEMICOL, .str = ";", .need_free = false});
-    break;
-  default:
-    printf("Unknown char: %c\n", peek_char(t));
-    exit(EXIT_FAILURE);
-  }
 }
 
 void tokenize(Tokenizer *t, Array *a) {
@@ -151,6 +76,84 @@ void tokenize(Tokenizer *t, Array *a) {
   }
 
   t->curr_index = 0;
+}
+
+bool is_bin_op(TokenType type) {
+  switch (type) {
+  case PLUS:
+  case DASH:
+  case STAR:
+  case FSLASH:
+    return true;
+  default:
+    return false;
+  }
+}
+
+int bin_prec(TokenType type) {
+  switch (type) {
+  case PLUS:
+  case DASH:
+    return 1;
+  case STAR:
+  case FSLASH:
+    return 2;
+  default:
+    return 0;
+  }
+}
+
+void token_singular_char(Tokenizer *t, Array *a, char c) {
+  if (isspace(c)) {
+    consume_char(t);
+    return;
+  }
+
+  switch (c) {
+  case '(':
+    consume_char(t);
+    appendArray(a, &(Token){.type = LPAREN, .str = "(", .need_free = false});
+    break;
+  case ')':
+    consume_char(t);
+    appendArray(a, &(Token){.type = RPAREN, .str = ")", .need_free = false});
+    break;
+  case '{':
+    consume_char(t);
+    appendArray(a, &(Token){.type = LBRACE, .str = "{", .need_free = false});
+    break;
+  case '}':
+    consume_char(t);
+    appendArray(a, &(Token){.type = RBRACE, .str = "}", .need_free = false});
+    break;
+  case '=':
+    consume_char(t);
+    appendArray(a, &(Token){.type = EQUAL, .str = "=", .need_free = false});
+    break;
+  case '+':
+    consume_char(t);
+    appendArray(a, &(Token){.type = PLUS, .str = "+", .need_free = false});
+    break;
+  case '-':
+    consume_char(t);
+    appendArray(a, &(Token){.type = DASH, .str = "-", .need_free = false});
+    break;
+  case '*':
+    consume_char(t);
+    appendArray(a, &(Token){.type = STAR, .str = "*", .need_free = false});
+    break;
+  case '/':
+    consume_char(t);
+    appendArray(a, &(Token){.type = FSLASH, .str = "/", .need_free = false});
+    break;
+  case ';':
+    consume_char(t);
+    appendArray(a, &(Token){.type = SEMICOL, .str = ";", .need_free = false});
+    break;
+  default:
+    printf("Unknown char: %c\n", peek_char(t));
+    exit(EXIT_FAILURE);
+  }
 }
 
 void freeBuiltinMap() {

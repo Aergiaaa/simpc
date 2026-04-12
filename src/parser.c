@@ -9,78 +9,26 @@
 
 NodeExpr *parse_expr(Parser *p, int min_prec);
 NodeStmt *parse_stmt(Parser *p);
+NodeTerm *parse_term(Parser *p);
+NodeScope *parse_scope(Parser *p);
+NodeExprBinOp *parse_bin_op(Parser *p, Token *op, NodeExpr *left, int prec);
 
-NodeTerm *parse_term(Parser *p) {
-  Token *t = peek_token(p);
-  if (t == NULL) {
-    return NULL;
-  }
+NodeProg *parse(Parser *p) {
+  NodeProg *prog = alloc(p->allocator, sizeof(NodeProg));
+  prog->stmt = initArray(8, sizeof(NodeStmt));
 
-  switch (t->type) {
-  case INT_LIT:;
-    {
-      NodeTermIntLit *int_lit = alloc(p->allocator, sizeof(NodeTermIntLit));
-      int_lit->lit = consume_token(p);
-
-      NodeTerm *term = alloc(p->allocator, sizeof(NodeTerm));
-      term->type = TERM_INT_LIT;
-      term->int_lit = int_lit;
-      return term;
-    }
-  case IDENT:;
-    {
-      NodeTermIdent *ident = alloc(p->allocator, sizeof(NodeTermIdent));
-      ident->ident = consume_token(p);
-
-      NodeTerm *term = alloc(p->allocator, sizeof(NodeTerm));
-      term->type = TERM_IDENT;
-      term->ident = ident;
-      return term;
-    }
-  case LPAREN:;
-    {
-      consume_token(p);
-      NodeTermParen *paren = alloc(p->allocator, sizeof(NodeTermParen));
-      NodeExpr *expr = parse_expr(p, 0);
-      if (expr == NULL) {
-        printf("expected expression");
-        exit(EXIT_FAILURE);
-      }
-
-      try_consume_token_with_err(p, RPAREN, "Expected ')'\n");
-      NodeTerm *term = alloc(p->allocator, sizeof(NodeTerm));
-
-      paren->expr = expr;
-      term->type = TERM_PAREN;
-      term->paren = paren;
-      return term;
-    }
-  default:
-    return NULL;
-  }
-}
-
-NodeScope *parse_scope(Parser *p) {
-  if (try_consume_token(p, LBRACE) == NULL)
-    return NULL;
-
-  NodeScope *scope = alloc(p->allocator, sizeof(NodeScope));
-  scope->stmt = initArray(8, sizeof(NodeStmt));
-
-  while (peek_token(p) != NULL && peek_token(p)->type != RBRACE) {
-    NodeStmt *inner_stmt = parse_stmt(p);
-    if (inner_stmt == NULL) {
-      printf("invalid statement in scope\n");
+  while (peek_token(p) != NULL) {
+    NodeStmt *stmt = parse_stmt(p);
+    if (stmt != NULL) {
+      appendArray(&prog->stmt, stmt);
+    } else {
+      printf("invalid statement\n");
       exit(EXIT_FAILURE);
     }
+  };
 
-    appendArray(&scope->stmt, inner_stmt);
-  }
-
-  try_consume_token_with_err(p, RBRACE, "expected '}'\n");
-
-  return scope;
-}
+  return prog;
+};
 
 NodeExpr *parse_expr(Parser *p, int min_prec) {
 
@@ -89,91 +37,24 @@ NodeExpr *parse_expr(Parser *p, int min_prec) {
     return NULL;
   }
 
-  NodeExpr *expr_left_root = alloc(p->allocator, sizeof(NodeExpr));
-  expr_left_root->type = EXPR_TERM;
-  expr_left_root->term = term_left;
+  NodeExpr *left = alloc(p->allocator, sizeof(NodeExpr));
+  left->type = EXPR_TERM;
+  left->term = term_left;
 
   while (true) {
-    Token *curr = peek_token(p);
-    if (curr == NULL)
+    Token *op = peek_token(p);
+    if (op == NULL || !is_bin_op(op->type) || bin_prec(op->type) < min_prec)
       break;
+    consume_token(p);
 
-    int prec = bin_prec(curr->type);
-    if (!is_bin_op(curr->type) || prec < min_prec) {
-      break;
-    }
-    Token *op = consume_token(p);
+    NodeExpr *expr = alloc(p->allocator, sizeof(NodeExpr));
+    expr->type = EXPR_BIN_OP;
+    expr->bin_op = parse_bin_op(p, op, left, bin_prec(op->type));
 
-    int next_min_prec = prec + 1;
-    NodeExpr *expr_right = parse_expr(p, next_min_prec);
-    if (expr_right == NULL) {
-      printf("unable to parse expr");
-      exit(EXIT_FAILURE);
-    }
-
-    NodeExpr *expr_left = alloc(p->allocator, sizeof(NodeExpr));
-    expr_left->type = expr_left_root->type;
-    switch (expr_left_root->type) {
-    case EXPR_BIN_OP:
-      expr_left->bin_op = expr_left_root->bin_op;
-      break;
-    case EXPR_TERM:
-      expr_left->term = expr_left_root->term;
-      break;
-    }
-
-    NodeExprBinOp *bin_op = alloc(p->allocator, sizeof(NodeExprBinOp));
-    switch (op->type) {
-    case ADD:;
-      {
-        BinExprAdd *add = alloc(p->allocator, sizeof(BinExprAdd));
-
-        add->left = expr_left;
-        add->right = expr_right;
-
-        bin_op->type = BIN_ADD_EXPR;
-        bin_op->add = add;
-        break;
-      }
-    case SUB:;
-      {
-        BinExprSub *sub = alloc(p->allocator, sizeof(BinExprSub));
-        sub->left = expr_left;
-        sub->right = expr_right;
-
-        bin_op->type = BIN_SUB_EXPR;
-        bin_op->sub = sub;
-        break;
-      }
-    case MUL:;
-      {
-        BinExprMul *mul = alloc(p->allocator, sizeof(BinExprMul));
-        mul->left = expr_left;
-        mul->right = expr_right;
-
-        bin_op->type = BIN_MUL_EXPR;
-        bin_op->mul = mul;
-        break;
-      }
-    case DIV:;
-      {
-        BinExprDiv *div = alloc(p->allocator, sizeof(BinExprDiv));
-        div->left = expr_left;
-        div->right = expr_right;
-
-        bin_op->type = BIN_DIV_EXPR;
-        bin_op->div = div;
-        break;
-      }
-    default:
-      break;
-    }
-
-    expr_left_root->type = EXPR_BIN_OP;
-    expr_left_root->bin_op = bin_op;
+    left = expr;
   }
 
-  return expr_left_root;
+  return left;
 };
 
 NodeStmt *parse_stmt(Parser *p) {
@@ -278,19 +159,124 @@ NodeStmt *parse_stmt(Parser *p) {
   return stmt;
 }
 
-NodeProg *parse(Parser *p) {
-  NodeProg *prog = alloc(p->allocator, sizeof(NodeProg));
-  prog->stmt = initArray(8, sizeof(NodeStmt));
+NodeTerm *parse_term(Parser *p) {
+  Token *t = peek_token(p);
+  if (t == NULL) {
+    return NULL;
+  }
 
-  while (peek_token(p) != NULL) {
-    NodeStmt *stmt = parse_stmt(p);
-    if (stmt != NULL) {
-      appendArray(&prog->stmt, stmt);
-    } else {
-      printf("invalid statement\n");
+  switch (t->type) {
+  case INT_LIT:;
+    {
+      NodeTermIntLit *int_lit = alloc(p->allocator, sizeof(NodeTermIntLit));
+      int_lit->lit = consume_token(p);
+
+      NodeTerm *term = alloc(p->allocator, sizeof(NodeTerm));
+      term->type = TERM_INT_LIT;
+      term->int_lit = int_lit;
+      return term;
+    }
+  case IDENT:;
+    {
+      NodeTermIdent *ident = alloc(p->allocator, sizeof(NodeTermIdent));
+      ident->ident = consume_token(p);
+
+      NodeTerm *term = alloc(p->allocator, sizeof(NodeTerm));
+      term->type = TERM_IDENT;
+      term->ident = ident;
+      return term;
+    }
+  case LPAREN:;
+    {
+      consume_token(p);
+      NodeTermParen *paren = alloc(p->allocator, sizeof(NodeTermParen));
+      NodeExpr *expr = parse_expr(p, 0);
+      if (expr == NULL) {
+        printf("expected expression");
+        exit(EXIT_FAILURE);
+      }
+
+      try_consume_token_with_err(p, RPAREN, "Expected ')'\n");
+      NodeTerm *term = alloc(p->allocator, sizeof(NodeTerm));
+
+      paren->expr = expr;
+      term->type = TERM_PAREN;
+      term->paren = paren;
+      return term;
+    }
+  default:
+    return NULL;
+  }
+}
+
+NodeScope *parse_scope(Parser *p) {
+  if (try_consume_token(p, LBRACE) == NULL)
+    return NULL;
+
+  NodeScope *scope = alloc(p->allocator, sizeof(NodeScope));
+  scope->stmt = initArray(8, sizeof(NodeStmt));
+
+  while (peek_token(p) != NULL && peek_token(p)->type != RBRACE) {
+    NodeStmt *inner_stmt = parse_stmt(p);
+    if (inner_stmt == NULL) {
+      printf("invalid statement in scope\n");
       exit(EXIT_FAILURE);
     }
-  };
 
-  return prog;
-};
+    appendArray(&scope->stmt, inner_stmt);
+  }
+
+  try_consume_token_with_err(p, RBRACE, "expected '}'\n");
+
+  return scope;
+}
+
+NodeExprBinOp *parse_bin_op(Parser *p, Token *op, NodeExpr *left, int prec) {
+  NodeExpr *right = parse_expr(p, prec + 1);
+  if (right == NULL) {
+    printf("unable to parse expr");
+    exit(EXIT_FAILURE);
+  }
+
+  NodeExprBinOp *bin_op = alloc(p->allocator, sizeof(NodeExprBinOp));
+  switch (op->type) {
+  case PLUS:;
+    BinExprAdd *add = alloc(p->allocator, sizeof(BinExprAdd));
+
+    add->left = left;
+    add->right = right;
+
+    bin_op->type = BIN_ADD_EXPR;
+    bin_op->add = add;
+    break;
+  case DASH:;
+    BinExprSub *sub = alloc(p->allocator, sizeof(BinExprSub));
+    sub->left = left;
+    sub->right = right;
+
+    bin_op->type = BIN_SUB_EXPR;
+    bin_op->sub = sub;
+    break;
+  case STAR:;
+    BinExprMul *mul = alloc(p->allocator, sizeof(BinExprMul));
+    mul->left = left;
+    mul->right = right;
+
+    bin_op->type = BIN_MUL_EXPR;
+    bin_op->mul = mul;
+    break;
+  case FSLASH:;
+    BinExprDiv *div = alloc(p->allocator, sizeof(BinExprDiv));
+    div->left = left;
+    div->right = right;
+
+    bin_op->type = BIN_DIV_EXPR;
+    bin_op->div = div;
+    break;
+  default:
+    printf("unknown operator\n");
+    exit(EXIT_FAILURE);
+  }
+
+  return bin_op;
+}

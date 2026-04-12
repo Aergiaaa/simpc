@@ -6,13 +6,13 @@
 
 #define BUF_SIZE 1024
 
-typedef enum {
+typedef enum TokenType {
   // binary expr
   // already in precedence
-  ADD = 1,
-  SUB,
-  MUL,
-  DIV,
+  PLUS = 1,
+  DASH,
+  STAR,
+  FSLASH,
 
   // builtin
   EXIT,
