@@ -5,8 +5,19 @@
 #include <string.h>
 
 #include "array.h"
+#include "hashmap.h"
 #include "tokenizer.h"
 
+static HashMap builtin_map;
+static bool builtin_map_init = false;
+static void init_builtin_map() {
+  builtin_map = initHashMap();
+  hashmap_insert(&builtin_map, "exit", EXIT);
+  hashmap_insert(&builtin_map, "let", LET);
+  hashmap_insert(&builtin_map, "if", IF);
+  hashmap_insert(&builtin_map, "else", ELSE);
+  hashmap_insert(&builtin_map, "return", RETURN);
+}
 bool is_bin_op(TokenType type) {
   switch (type) {
   case ADD:
@@ -47,6 +58,14 @@ void token_singular_char(Tokenizer *t, Array *a, char c) {
     consume_char(t);
     appendArray(a, &(Token){.type = RPAREN, .str = ")", .need_free = false});
     break;
+  case '{':
+    consume_char(t);
+    appendArray(a, &(Token){.type = LBRACE, .str = "{", .need_free = false});
+    break;
+  case '}':
+    consume_char(t);
+    appendArray(a, &(Token){.type = RBRACE, .str = "}", .need_free = false});
+    break;
   case '=':
     consume_char(t);
     appendArray(a, &(Token){.type = EQUAL, .str = "=", .need_free = false});
@@ -78,6 +97,11 @@ void token_singular_char(Tokenizer *t, Array *a, char c) {
 }
 
 void tokenize(Tokenizer *t, Array *a) {
+  if (!builtin_map_init) {
+    init_builtin_map();
+    builtin_map_init = true;
+  }
+
   char buf[BUF_SIZE];
   int len = 0;
 
@@ -91,11 +115,13 @@ void tokenize(Tokenizer *t, Array *a) {
       }
       buf[len] = '\0';
 
-      if (strcmp(buf, "exit") == 0) {
-        appendArray(a,
-                    &(Token){.type = EXIT, .str = "exit", .need_free = false});
-      } else if (strcmp(buf, "let") == 0) {
-        appendArray(a, &(Token){.type = LET, .str = "let", .need_free = false});
+      HashEntry *builtin = hashmap_get(&builtin_map, buf);
+      if (builtin != NULL) {
+        appendArray(a, &(Token){
+                           .type = (TokenType)builtin->stack_pos,
+                           .str = builtin->key,
+                           .need_free = false,
+                       });
       } else {
         appendArray(
             a, &(Token){.type = IDENT, .str = strdup(buf), .need_free = true});
@@ -125,6 +151,11 @@ void tokenize(Tokenizer *t, Array *a) {
   }
 
   t->curr_index = 0;
+}
+
+void freeBuiltinMap() {
+  freeHashMap(&builtin_map);
+  builtin_map_init = false;
 }
 
 void freeToken(void *elem) {

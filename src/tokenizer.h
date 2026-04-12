@@ -25,11 +25,17 @@ typedef enum {
   SEMICOL,
   LPAREN,
   RPAREN,
+  LBRACE,
+  RBRACE,
 
   // variable allocation
   LET,
   IDENT,
   EQUAL,
+
+  // if else
+  IF,
+  ELSE,
 
 } TokenType;
 
@@ -42,6 +48,7 @@ typedef struct Token {
   bool need_free;
 } Token;
 
+void freeBuiltinMap();
 void freeToken(void *elem);
 
 typedef struct Tokenizer {

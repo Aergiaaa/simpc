@@ -5,6 +5,7 @@
 #include "generation.h"
 #include "parser.h"
 #include "run.h"
+#include "scope.h"
 #include "tokenizer.h"
 
 int main(int argc, char **argv) {
@@ -72,10 +73,11 @@ int main(int argc, char **argv) {
 
   // free-ing stuff
 freeup:
+  freeBuiltinMap();
   freeArray(&tokenlist, freeToken);
   freeArray(&tree->stmt, NULL);
   freeArena(parser.allocator);
-  freeHashMap(&generator.vars);
+  freeScopeStack(&generator.scope);
   free(generator.result);
   free(src);
 

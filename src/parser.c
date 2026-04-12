@@ -8,6 +8,7 @@
 #include "tokenizer.h"
 
 NodeExpr *parse_expr(Parser *p, int min_prec);
+NodeStmt *parse_stmt(Parser *p);
 
 NodeTerm *parse_term(Parser *p) {
   Token *t = peek_token(p);
@@ -57,6 +58,28 @@ NodeTerm *parse_term(Parser *p) {
   default:
     return NULL;
   }
+}
+
+NodeScope *parse_scope(Parser *p) {
+  if (try_consume_token(p, LBRACE) == NULL)
+    return NULL;
+
+  NodeScope *scope = alloc(p->allocator, sizeof(NodeScope));
+  scope->stmt = initArray(8, sizeof(NodeStmt));
+
+  while (peek_token(p) != NULL && peek_token(p)->type != RBRACE) {
+    NodeStmt *inner_stmt = parse_stmt(p);
+    if (inner_stmt == NULL) {
+      printf("invalid statement in scope\n");
+      exit(EXIT_FAILURE);
+    }
+
+    appendArray(&scope->stmt, inner_stmt);
+  }
+
+  try_consume_token_with_err(p, RBRACE, "expected '}'\n");
+
+  return scope;
 }
 
 NodeExpr *parse_expr(Parser *p, int min_prec) {
@@ -179,11 +202,12 @@ NodeStmt *parse_stmt(Parser *p) {
       stmt->exit = exit_stmt;
 
       return stmt;
-    } else if (peek_token(p) != NULL && peek_token(p)->type == LET &&
-               peek_token_offset(p, 1) != NULL &&
-               peek_token_offset(p, 1)->type == IDENT &&
-               peek_token_offset(p, 2) != NULL &&
-               peek_token_offset(p, 2)->type == EQUAL) {
+    }
+
+    else if (peek_token(p)->type == LET && peek_token_offset(p, 1) != NULL &&
+             peek_token_offset(p, 1)->type == IDENT &&
+             peek_token_offset(p, 2) != NULL &&
+             peek_token_offset(p, 2)->type == EQUAL) {
 
       consume_token(p); // consume 'let'
 
@@ -205,11 +229,52 @@ NodeStmt *parse_stmt(Parser *p) {
       stmt->type = STMT_LET;
       stmt->let = let;
       return stmt;
-    } else {
+    }
+
+    else if (peek_token(p)->type == LBRACE) {
+      NodeScope *scope = parse_scope(p);
+      if (scope == NULL) {
+        printf("invalid scope");
+        exit(EXIT_FAILURE);
+      }
+
+      NodeStmt *stmt = alloc(p->allocator, sizeof(NodeStmt));
+      stmt->type = STMT_SCOPE;
+      stmt->scope = scope;
+      return stmt;
+    }
+
+    else if (try_consume_token(p, IF) != NULL) {
+      try_consume_token_with_err(p, LPAREN, "expected '('");
+
+      NodeStmtIf *if_stmt = alloc(p->allocator, sizeof(NodeStmtIf));
+
+      NodeExpr *expr = parse_expr(p, 0);
+      if (expr == NULL) {
+        printf("invalid expression");
+        exit(EXIT_FAILURE);
+      }
+      if_stmt->expr = expr;
+
+      try_consume_token_with_err(p, RPAREN, "expected ')'");
+      NodeScope *scope = parse_scope(p);
+      if (scope == NULL) {
+        printf("expected scope\n");
+        exit(EXIT_FAILURE);
+      }
+      if_stmt->scope = scope;
+
+      NodeStmt *stmt = alloc(p->allocator, sizeof(NodeStmt));
+      stmt->type = STMT_IF;
+      stmt->if_stmt = if_stmt;
+      return stmt;
+    }
+
+    else {
       printf("unexpected statement\n");
       exit(EXIT_FAILURE);
     }
-  };
+  }
   return stmt;
 }
 

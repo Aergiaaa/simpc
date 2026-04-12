@@ -89,9 +89,20 @@ typedef struct NodeStmtLet {
   NodeExpr *expr;
 } NodeStmtLet;
 
+typedef struct NodeScope {
+  Array stmt;
+} NodeScope;
+
+typedef struct NodeStmtIf {
+  NodeExpr *expr;
+  NodeScope *scope;
+} NodeStmtIf;
+
 typedef enum NodeStmtType {
   STMT_EXIT,
   STMT_LET,
+  STMT_SCOPE,
+  STMT_IF,
 } NodeStmtType;
 
 typedef struct NodeStmt {
@@ -99,6 +110,8 @@ typedef struct NodeStmt {
   union {
     NodeStmtExit *exit;
     NodeStmtLet *let;
+    NodeScope *scope;
+    NodeStmtIf *if_stmt;
   };
 } NodeStmt;
 
