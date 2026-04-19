@@ -34,6 +34,7 @@ typedef enum TokenType {
 
   // if else
   IF,
+  ELIF,
   ELSE,
 
 } TokenType;
@@ -42,6 +43,8 @@ bool is_bin_op(TokenType type);
 int bin_prec(TokenType type);
 
 typedef struct Token {
+  int line;
+  int col;
   TokenType type;
   const char *str;
   bool need_free;
@@ -67,13 +70,15 @@ static inline Tokenizer initTokenizer(const char *str) {
   };
 };
 
-// returning current value without removing it
-static inline char peek_char(Tokenizer *t) {
-  if (t->curr_index >= (int)t->len)
+static inline char peek_char_offset(Tokenizer *t, int offset) {
+  if (t->curr_index + offset >= (int)t->len)
     return '\0';
 
-  return t->str[t->curr_index];
+  return t->str[t->curr_index + offset];
 };
+
+// returning current value without removing it
+static inline char peek_char(Tokenizer *t) { return peek_char_offset(t, 0); };
 
 // returning current value and removing it from string
 static inline char consume_char(Tokenizer *t) {

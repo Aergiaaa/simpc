@@ -2,6 +2,7 @@
 
 #include "arena.h"
 #include "node.h"
+#include <stdio.h>
 
 typedef struct Parser {
   const Array *tokens;
@@ -9,6 +10,8 @@ typedef struct Parser {
   size_t curr_index;
   ArenaAllocator *allocator;
 } Parser;
+
+void error_expected(Parser *p, const char *msg);
 
 NodeProg *parse(Parser *p);
 
@@ -45,12 +48,11 @@ static inline Token *try_consume_token(Parser *p, TokenType type) {
   }
 }
 
-static inline Token *try_consume_token_with_err(Parser *p, TokenType type,
-                                                char *err_msg) {
-  if (peek_token(p) != NULL && peek_token(p)->type == type) {
+static inline Token *try_consume_token_with_err(Parser *p, TokenType type) {
+  Token *tok = peek_token(p);
+  if (tok != NULL && tok->type == type) {
     return consume_token(p);
-  } else {
-    printf("%s", err_msg);
-    exit(EXIT_FAILURE);
   }
+  error_expected(p, tok->str);
+  return NULL;
 }

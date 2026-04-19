@@ -8,7 +8,8 @@
 #include "hashmap.h"
 #include "tokenizer.h"
 
-void token_singular_char(Tokenizer *t, Array *a, char c);
+void token_singular_char(Tokenizer *t, Array *a, char c, int line_count);
+void try_remove_comment(Tokenizer *t, char next_char);
 
 static HashMap builtin_map;
 static bool builtin_map_init = false;
@@ -17,6 +18,7 @@ static void init_builtin_map() {
   hashmap_insert(&builtin_map, "exit", EXIT);
   hashmap_insert(&builtin_map, "let", LET);
   hashmap_insert(&builtin_map, "if", IF);
+  hashmap_insert(&builtin_map, "elif", ELIF);
   hashmap_insert(&builtin_map, "else", ELSE);
   hashmap_insert(&builtin_map, "return", RETURN);
 }
@@ -30,12 +32,14 @@ void tokenize(Tokenizer *t, Array *a) {
   char buf[BUF_SIZE];
   int len = 0;
 
+  int line_count = 1;
   while (peek_char(t) != '\0') {
     char c = peek_char(t);
 
     if (isalpha(c)) {
       buf[len++] = consume_char(t);
-      while (peek_char(t) != '\0' && isalnum(peek_char(t))) {
+
+      while (isalnum(peek_char(t))) {
         buf[len++] = consume_char(t);
       }
       buf[len] = '\0';
@@ -44,12 +48,17 @@ void tokenize(Tokenizer *t, Array *a) {
       if (builtin != NULL) {
         appendArray(a, &(Token){
                            .type = (TokenType)builtin->stack_pos,
+                           .line = line_count,
                            .str = builtin->key,
                            .need_free = false,
                        });
       } else {
-        appendArray(
-            a, &(Token){.type = IDENT, .str = strdup(buf), .need_free = true});
+        appendArray(a, &(Token){
+                           .type = IDENT,
+                           .line = line_count,
+                           .str = strdup(buf),
+                           .need_free = true,
+                       });
       }
 
       len = 0;
@@ -60,22 +69,185 @@ void tokenize(Tokenizer *t, Array *a) {
     // if buffer is a number
     else if (isdigit(c)) {
       buf[len++] = consume_char(t);
-      while (peek_char(t) != '\0' && isdigit(peek_char(t))) {
+      while (isdigit(peek_char(t))) {
         buf[len++] = consume_char(t);
       }
       buf[len] = '\0';
-      appendArray(
-          a, &(Token){.type = INT_LIT, .str = strdup(buf), .need_free = true});
+      appendArray(a, &(Token){
+                         .type = INT_LIT,
+                         .line = line_count,
+                         .str = strdup(buf),
+                         .need_free = true,
+                     });
 
       len = 0;
       buf[0] = '\0';
       continue;
     }
 
-    token_singular_char(t, a, c);
+    if (peek_char(t) == '/') {
+      char next_char = peek_char_offset(t, 1);
+      if (next_char == '/' || next_char == '*') {
+        try_remove_comment(t, next_char);
+        continue;
+      }
+    }
+
+    if (peek_char(t) == '\n') {
+      consume_char(t);
+      line_count++;
+      continue;
+    }
+
+    token_singular_char(t, a, c, line_count);
   }
 
   t->curr_index = 0;
+}
+
+void token_singular_char(Tokenizer *t, Array *a, char c, int line_count) {
+  if (isspace(c)) {
+    consume_char(t);
+    return;
+  }
+
+  switch (c) {
+  case '(':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = LPAREN,
+                       .str = "(",
+                       .need_free = false,
+                   });
+    break;
+  case ')':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = RPAREN,
+                       .str = ")",
+                       .need_free = false,
+                   });
+    break;
+  case '{':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = LBRACE,
+                       .str = "{",
+                       .need_free = false,
+                   });
+    break;
+  case '}':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = RBRACE,
+                       .str = "}",
+                       .need_free = false,
+                   });
+    break;
+  case '=':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = EQUAL,
+                       .str = "=",
+                       .need_free = false,
+                   });
+    break;
+  case '+':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = PLUS,
+                       .str = "+",
+                       .need_free = false,
+                   });
+    break;
+  case '-':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = DASH,
+                       .str = "-",
+                       .need_free = false,
+                   });
+    break;
+  case '*':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = STAR,
+                       .str = "*",
+                       .need_free = false,
+                   });
+    break;
+  case '/':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = FSLASH,
+                       .str = "/",
+                       .need_free = false,
+                   });
+    break;
+  case ';':
+    consume_char(t);
+    appendArray(a, &(Token){
+                       .line = line_count,
+                       .type = SEMICOL,
+                       .str = ";",
+                       .need_free = false,
+                   });
+    break;
+  default:
+    printf("invalid token: %c\n", peek_char(t));
+    exit(EXIT_FAILURE);
+  }
+}
+
+void try_remove_comment(Tokenizer *t, char next_char) {
+
+  if (next_char == '/') {
+    consume_char(t);
+    consume_char(t);
+
+    while (peek_char(t) != '\0' && peek_char(t) != '\n') {
+      consume_char(t);
+    }
+    consume_char(t);
+
+    return;
+  }
+
+  if (next_char == '*') {
+    consume_char(t); // '/'
+    consume_char(t); // '*'
+
+    int depth = 1;
+    while (depth > 0) {
+      if (peek_char(t) == '\0') {
+        printf("unterminated block comment\n");
+        exit(EXIT_FAILURE);
+      }
+      if (peek_char(t) == '/' && peek_char_offset(t, 1) == '*') {
+        consume_char(t);
+        consume_char(t);
+        depth++;
+      } else if (peek_char(t) == '*' && peek_char_offset(t, 1) == '/') {
+        consume_char(t);
+        consume_char(t);
+        depth--;
+      } else {
+        consume_char(t);
+      }
+    }
+    return;
+  }
+
+  return;
 }
 
 bool is_bin_op(TokenType type) {
@@ -100,59 +272,6 @@ int bin_prec(TokenType type) {
     return 2;
   default:
     return 0;
-  }
-}
-
-void token_singular_char(Tokenizer *t, Array *a, char c) {
-  if (isspace(c)) {
-    consume_char(t);
-    return;
-  }
-
-  switch (c) {
-  case '(':
-    consume_char(t);
-    appendArray(a, &(Token){.type = LPAREN, .str = "(", .need_free = false});
-    break;
-  case ')':
-    consume_char(t);
-    appendArray(a, &(Token){.type = RPAREN, .str = ")", .need_free = false});
-    break;
-  case '{':
-    consume_char(t);
-    appendArray(a, &(Token){.type = LBRACE, .str = "{", .need_free = false});
-    break;
-  case '}':
-    consume_char(t);
-    appendArray(a, &(Token){.type = RBRACE, .str = "}", .need_free = false});
-    break;
-  case '=':
-    consume_char(t);
-    appendArray(a, &(Token){.type = EQUAL, .str = "=", .need_free = false});
-    break;
-  case '+':
-    consume_char(t);
-    appendArray(a, &(Token){.type = PLUS, .str = "+", .need_free = false});
-    break;
-  case '-':
-    consume_char(t);
-    appendArray(a, &(Token){.type = DASH, .str = "-", .need_free = false});
-    break;
-  case '*':
-    consume_char(t);
-    appendArray(a, &(Token){.type = STAR, .str = "*", .need_free = false});
-    break;
-  case '/':
-    consume_char(t);
-    appendArray(a, &(Token){.type = FSLASH, .str = "/", .need_free = false});
-    break;
-  case ';':
-    consume_char(t);
-    appendArray(a, &(Token){.type = SEMICOL, .str = ";", .need_free = false});
-    break;
-  default:
-    printf("Unknown char: %c\n", peek_char(t));
-    exit(EXIT_FAILURE);
   }
 }
 

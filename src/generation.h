@@ -8,7 +8,7 @@ typedef struct Generator {
   char *result;
   ScopeStack scope;
   size_t stack_size;
-  int label_count;
+  size_t label_count;
 } Generator;
 
 static inline Generator initGenerator(NodeProg *root) {

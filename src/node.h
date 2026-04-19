@@ -93,16 +93,46 @@ typedef struct NodeScope {
   Array stmt;
 } NodeScope;
 
+typedef struct NodeIfPredElif {
+  NodeExpr *expr;
+  NodeScope *scope;
+  struct NodeIfPred *pred;
+} NodeIfPredElif;
+
+typedef struct NodeIfPredElse {
+  NodeScope *scope;
+} NodeIfPredElse;
+
+typedef enum NodeIfPredType {
+  IF_PRED_ELIF,
+  IF_PRED_ELSE,
+} NodeIfPredType;
+
+typedef struct NodeIfPred {
+  NodeIfPredType type;
+  union {
+    NodeIfPredElif *pred_elif;
+    NodeIfPredElse *pred_else;
+  };
+} NodeIfPred;
+
 typedef struct NodeStmtIf {
   NodeExpr *expr;
   NodeScope *scope;
+  NodeIfPred *pred;
 } NodeStmtIf;
+
+typedef struct NodeStmtAssign {
+  Token *ident;
+  NodeExpr *expr;
+} NodeStmtAssign;
 
 typedef enum NodeStmtType {
   STMT_EXIT,
   STMT_LET,
   STMT_SCOPE,
   STMT_IF,
+  STMT_ASSIGN,
 } NodeStmtType;
 
 typedef struct NodeStmt {
@@ -112,6 +142,7 @@ typedef struct NodeStmt {
     NodeStmtLet *let;
     NodeScope *scope;
     NodeStmtIf *if_stmt;
+    NodeStmtAssign *assign;
   };
 } NodeStmt;
 
